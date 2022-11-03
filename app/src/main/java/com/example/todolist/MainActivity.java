@@ -5,8 +5,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
 import android.content.DialogInterface;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.text.InputType;
@@ -16,7 +14,6 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -26,11 +23,9 @@ public class MainActivity extends AppCompatActivity {
 
     private FloatingActionButton addToDoButton;
     private ArrayList<String> items;
-    private ArrayList<String> selected;
     private ArrayAdapter<String> itemsAdapter;
     private ListView listView;
-    private final String databaseName = "sqlite-todolist.db";
-    private int idMax = 0;
+    private DatabaseHelper database = new DatabaseHelper();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,9 +43,10 @@ public class MainActivity extends AppCompatActivity {
 
         items = new ArrayList<>();
         itemsAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_multiple_choice, items);
-        initializeAndLoadFromDatabase(databaseName, MODE_PRIVATE);
+        database.initializeAndLoadFromDatabase(getBaseContext(), listView, itemsAdapter);
         listView.setAdapter(itemsAdapter);
         listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+        database.handleChecked(getBaseContext(), listView);
         setUpListViewListener();
     }
 
@@ -61,18 +57,17 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 TextView textView = (TextView) view;
                 if (listView.isItemChecked(i)) {
-                    Toast.makeText(context, "i = "+Integer.toString(i)+" l = "+Long.toString(l), Toast.LENGTH_LONG).show();
-                    textView.setPaintFlags(textView.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+                    database.toggleCheck(getBaseContext(), i, true);
                 } else {
-                    textView.setPaintFlags(textView.getPaintFlags() &~ Paint.STRIKE_THRU_TEXT_FLAG);
+                    database.toggleCheck(getBaseContext(), i, false);
                 }
             }
         });
         listView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> adapterView, View view, int i, long l) {
-                Context context = getApplicationContext();
                 items.remove(i);
+                database.removeFromDatabase(getBaseContext(), i);
                 itemsAdapter.notifyDataSetChanged();
                 return true;
             }
@@ -96,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(DialogInterface dialogInterface, int i) {
                 String itemText = input.getText().toString();
                 itemsAdapter.add(itemText);
-                saveToDatabase(databaseName, MODE_PRIVATE, itemText);
+                database.saveToDatabase(getBaseContext(), itemText);
                 input.setText("");
                 dialogInterface.cancel();
             }
@@ -108,41 +103,5 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         builder.show();
-    }
-
-    private void initializeAndLoadFromDatabase(String databaseName, int mode) {
-        String sql = "CREATE TABLE IF NOT EXISTS \"tasks\" (\n" +
-                "\t\"id\"\tINTEGER NOT NULL,\n" +
-                "\t\"info\"\tTEXT,\n" +
-                "\t\"isChecked\"\tINTEGER DEFAULT 0,\n" +
-                "\tPRIMARY KEY(\"id\")\n" +
-                ");";
-        SQLiteDatabase sqLiteDatabase = getBaseContext().openOrCreateDatabase(databaseName, mode, null);
-        sqLiteDatabase.execSQL(sql);
-        Cursor query = sqLiteDatabase.rawQuery("SELECT * FROM tasks;", null);
-        if (query.moveToFirst()) {
-            do {
-                String info = query.getString(1);
-                Boolean checked = (query.getInt(2) == 0) ? false: true;
-                listView.setItemChecked(idMax, checked);
-                itemsAdapter.add(info);
-                idMax++;
-            } while (query.moveToNext());
-        }
-        query.close();
-        sqLiteDatabase.close();
-    }
-
-    private void saveToDatabase(String databaseName, int mode, String info) {
-        SQLiteDatabase sqLiteDatabase = getBaseContext().openOrCreateDatabase(databaseName, mode, null);
-        String sql = "INSERT INTO tasks ('info', 'isChecked') VALUES('" + info + "', 0);";
-        sqLiteDatabase.execSQL(sql);
-        sqLiteDatabase.close();
-    }
-
-    private void removeFromDatabase(String databaseName, int mode, int id) {
-    }
-
-    private void toggleCheck(String databaseName, int mode, int id) {
     }
 }
