@@ -1,6 +1,7 @@
 package com.example.todokotlin
 
 import android.content.DialogInterface
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
@@ -11,14 +12,14 @@ import android.widget.ListView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.example.todokotlin.databinding.ActivityMainBinding
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 
 class MainActivity : AppCompatActivity() {
 
-    lateinit var removeButton: FloatingActionButton
-    lateinit var addToDoButton: FloatingActionButton
+    private var binding: ActivityMainBinding? = null
+
     lateinit var itemsAdapter: ArrayAdapter<String>
-    lateinit var listView: ListView
     var items = ArrayList<String>()
     private val databaseHelper: DatabaseHelper = DatabaseHelper()
     private var countCheckedItems: Int = 0
@@ -26,28 +27,34 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding?.root)
+
+        setSupportActionBar(binding?.mainToolbar)
+        binding?.mainToolbar?.subtitle = "List of tasks"
 
         itemsAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_multiple_choice, items)
-        addToDoButton = findViewById(R.id.addToDoButton)
-        removeButton = findViewById(R.id.removeButton)
-        listView = findViewById(R.id.listView)
 
-        listView.choiceMode = ListView.CHOICE_MODE_MULTIPLE
-        listView.adapter = itemsAdapter
+        binding?.listView?.choiceMode = ListView.CHOICE_MODE_MULTIPLE
+        binding?.listView?.adapter = itemsAdapter
 
 
-        databaseHelper.initializeAndLoadFromDatabase(baseContext, listView, itemsAdapter)
-        databaseHelper.handleChecked(baseContext, listView)
+        databaseHelper.initializeAndLoadFromDatabase(baseContext, binding?.listView!!, itemsAdapter)
+        databaseHelper.handleChecked(baseContext, binding?.listView!!)
 
-        countCheckedItems = getCountCheckedItems(listView)
-            Log.i("info", "countCheckedItems = $countCheckedItems")
+        countCheckedItems = getCountCheckedItems(binding?.listView!!)
+        Log.i("info", "countCheckedItems = $countCheckedItems")
         if ( countCheckedItems <= 0 )
-            removeButton.visibility = View.GONE
+            binding?.removeButton?.visibility = View.GONE
 
-        addToDoButton.setOnClickListener{ addItem() }
+        binding?.addToDoButton?.setOnClickListener{ addItem() }
         setUpRemoveButtonViewListener()
         setUpListViewListener()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        binding = null
     }
 
     private fun getCountCheckedItems(listView: ListView): Int {
@@ -64,26 +71,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setUpListViewListener() {
-        listView.setOnItemClickListener { adapterView, view, i, l ->
-            if (listView.isItemChecked(i)) {
+        binding?.listView?.setOnItemClickListener { adapterView, view, i, l ->
+            if (binding?.listView!!.isItemChecked(i)) {
                 countCheckedItems++
-                if (countCheckedItems >= 0 && removeButton.visibility == View.GONE)
-                    removeButton.visibility = View.VISIBLE
+                if (countCheckedItems >= 0 && binding?.removeButton?.visibility == View.GONE)
+                    binding?.removeButton?.visibility = View.VISIBLE
                 databaseHelper.toggleCheck(baseContext, i, true)
             }
             else {
                 countCheckedItems--
-                if (countCheckedItems <= 0 && removeButton.visibility == View.VISIBLE)
-                    removeButton.visibility = View.GONE
+                if (countCheckedItems <= 0 && binding?.removeButton?.visibility == View.VISIBLE)
+                    binding?.removeButton?.visibility = View.GONE
                 databaseHelper.toggleCheck(baseContext, i, false)
             }
         }
-        listView.setOnItemLongClickListener { adapterView, view, i, l ->
+        binding?.listView?.setOnItemLongClickListener { adapterView, view, i, l ->
 //            databaseHelper.removeFromDatabase(baseContext, i+1)
 //            items.removeAt(i)
 //            itemsAdapter.notifyDataSetChanged()
-            ItemListDialogFragment.newInstance(1).show(supportFragmentManager, "dialog")
-
+//            ItemListDialogFragment.newInstance(1).show(supportFragmentManager, "dialog")
+            val intent: Intent = Intent(this@MainActivity, DetailsActivity::class.java)
+            startActivity(intent)
             return@setOnItemLongClickListener true
         }
     }
@@ -100,13 +108,13 @@ class MainActivity : AppCompatActivity() {
                 itemsAdapter.notifyDataSetChanged()
             }
             Toast.makeText(this, "Removed all checked items", Toast.LENGTH_LONG)
-            removeButton.visibility = View.GONE
+            binding?.removeButton?.visibility = View.GONE
             dialogInterface.cancel()
         });
         builder.setNegativeButton("Cancel", DialogInterface.OnClickListener { dialogInterface, i ->
             dialogInterface.dismiss()
         })
-        removeButton.setOnClickListener {
+        binding?.removeButton?.setOnClickListener {
             builder.show()
         }
     }
