@@ -91,6 +91,12 @@ class MainActivity : AppCompatActivity() {
 //            itemsAdapter.notifyDataSetChanged()
 //            ItemListDialogFragment.newInstance(1).show(supportFragmentManager, "dialog")
             val intent: Intent = Intent(this@MainActivity, DetailsActivity::class.java)
+            val taskItem: TaskItem? = databaseHelper.getData(baseContext, i+1)
+
+            intent.putExtra("ROWID", i)
+            intent.putExtra("info", taskItem!!.info)
+            intent.putExtra("isChecked", taskItem!!.isChecked)
+            intent.putExtra("date", taskItem!!.date)
             startActivity(intent)
             return@setOnItemLongClickListener true
         }

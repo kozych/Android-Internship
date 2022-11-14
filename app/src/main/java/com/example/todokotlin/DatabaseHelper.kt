@@ -3,19 +3,24 @@ package com.example.todokotlin
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.ListView
 
 class DatabaseHelper {
-    val databaseName = "todolist.db"
-    val isCheckedPosition = 1
-    val infoPosition = 0
+    private val databaseName = "todolist.db"
+    private val infoPosition = 0
+    private val isCheckedPosition = 1
+    private val datePosition = 2
+    private val isAlarmOnPosition = 3
 
     fun initializeAndLoadFromDatabase(baseContext: Context, listView: ListView, itemsAdapter: ArrayAdapter<String>) {
         val sqLiteDatabase: SQLiteDatabase = baseContext.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
         val sql = """CREATE TABLE IF NOT EXISTS "tasks" (
 	                "info"	TEXT,
-	                "isChecked"	INTEGER DEFAULT 0 );"""
+	                "isChecked"	INTEGER DEFAULT 0,
+                    "date"	TEXT,
+                    "isAlarmOn"	INTEGER DEFAULT 0);"""
 
         sqLiteDatabase.execSQL(sql)
         val query: Cursor = sqLiteDatabase.rawQuery("SELECT * FROM tasks;", null)
@@ -82,5 +87,55 @@ class DatabaseHelper {
 
         sqLiteDatabase.execSQL(sql)
         sqLiteDatabase.close()
+    }
+
+    fun setDate(context: Context, id: Int, date: String) {
+        val sqLiteDatabase: SQLiteDatabase = context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
+        val sql = buildString {
+            append("UPDATE tasks SET date = '$date'")
+            append("WHERE ROWID = ")
+            append(id+1)
+            append(";")
+        }
+
+        Log.i("database TAG", sql)
+
+        sqLiteDatabase.execSQL(sql)
+        sqLiteDatabase.close()
+    }
+
+    fun toggleAlarm(context: Context, id: Int, alarm: Boolean) {
+        val sqLiteDatabase: SQLiteDatabase = context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
+        val sql = buildString {
+            append("UPDATE tasks SET isAlarmOn = ")
+            if (alarm)
+                append("1 ")
+            else {
+                append("0 ")
+            }
+            append("WHERE ROWID = ")
+            append(id+1)
+            append(";")
+        }
+
+        sqLiteDatabase.execSQL(sql)
+        sqLiteDatabase.close()
+    }
+
+    fun getData(context: Context, id: Int): TaskItem? {
+        val sqLiteDatabase: SQLiteDatabase = context.openOrCreateDatabase(databaseName, Context.MODE_PRIVATE, null)
+
+        val sql = "SELECT * FROM tasks WHERE ROWID = '$id';"
+        val query: Cursor = sqLiteDatabase.rawQuery(sql, null)
+        val retItem: TaskItem = TaskItem()
+        if (query.moveToFirst()){
+            retItem.ROWID = id
+            retItem.info = query.getString(infoPosition)
+            retItem.isChecked = query.getInt(isCheckedPosition) == 1
+            retItem.date = query.getString(datePosition)
+            retItem.isAlarmOn = query.getInt(isAlarmOnPosition) == 1
+            return retItem
+        }
+        return null
     }
 }
